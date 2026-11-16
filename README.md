@@ -2,14 +2,14 @@
 
 Sparq is a statically typed, procedural programming language designed for the CS4031 Compiler Construction semester project. This repository will contain a Python 3.11+ compiler for `.spq` source files. The approved language specification is [docs/SPARQ_LANGUAGE_SPEC.md](docs/SPARQ_LANGUAGE_SPEC.md).
 
-The planned compiler phases are lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, optimization, and code generation for a custom register-based virtual machine. Only lexical analysis is implemented so far.
+The planned compiler phases are lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, optimization, and code generation for a custom register-based virtual machine. Lexical analysis and complete program parsing are implemented; later phases are not.
 
 ## Structure
 
 - `docs/`: frozen M1 specification and milestone tracker.
-- `sparq/`: token model, lexical errors, and manual lexer.
-- `tests/`: pytest coverage for lexical behavior.
-- `examples/`: reference Sparq source programs, which cannot yet be executed as programs.
+- `sparq/`: token model, lexical errors, manual lexer, immutable AST, and recursive-descent parser.
+- `tests/`: pytest coverage for lexical and syntax behavior.
+- `examples/`: reference Sparq source programs, which cannot yet be executed.
 
 ## Python environment
 
@@ -23,7 +23,11 @@ The lexer reads the source into an indexed character buffer. `peek()` and `peek_
 
 Identifiers are scanned completely before exact, case-sensitive keyword lookup. A contiguous number-like sequence is checked as a whole, distinguishing integers from decimal floats and rejecting malformed neighbors. Two-character operators are checked before one-character operators. Quoted literals are scanned before comment logic can affect their contents.
 
-No command to compile or run Sparq source exists yet. `examples/hello.spq` is a reference source file only.
+## Parser API
+
+Use `Parser(Lexer(source).tokenize()).parse()` to construct a complete `Program` AST. It accepts zero or more function declarations followed by one `START` block and requires the final EOF token. `Parser(tokens).parse_expression_only()` remains available for parsing a single expression. Invalid syntax raises `ParseError` with a category and source position. Parsing does not resolve names, check types, or execute code.
+
+No command to compile or run Sparq source exists yet. `examples/hello.spq` can be tokenized and parsed through the Python API.
 
 ## Academic integrity
 

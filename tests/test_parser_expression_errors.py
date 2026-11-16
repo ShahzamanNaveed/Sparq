@@ -127,3 +127,59 @@ def test_enormous_manual_coordinate_cannot_break_error_formatting():
         Parser([bad, eof])
     assert caught.value.category == "INVALID_TOKEN_STREAM"
     assert "<invalid position>" in str(caught.value)
+
+
+@pytest.mark.parametrize(("tokens", "kind", "location"), [
+    (
+        [Token(TokenType.INT_LITERAL, "1", 1, 2, 1, 2, 2),
+         Token(TokenType.PLUS, "+", None, 1, 3, 1, 4),
+         Token(TokenType.INT_LITERAL, "2", 2, 1, 5, 1, 6),
+         Token(TokenType.EOF, "", None, 1, 6, 1, 6)],
+        TokenType.PLUS, (1, 3),
+    ),
+    (
+        [Token(TokenType.INT_LITERAL, "12", 12, 1, 1, 1, 3),
+         Token(TokenType.PLUS, "+", None, 1, 2, 1, 3),
+         Token(TokenType.INT_LITERAL, "2", 2, 1, 3, 1, 4),
+         Token(TokenType.EOF, "", None, 1, 4, 1, 4)],
+        TokenType.PLUS, (1, 2),
+    ),
+    (
+        [Token(TokenType.INT_LITERAL, "1", 1, 1, 1, 1, 2),
+         Token(TokenType.EOF, "", None, 1, 1, 1, 1)],
+        TokenType.EOF, (1, 1),
+    ),
+])
+def test_reversed_or_overlapping_manual_token_positions_are_controlled(tokens, kind, location):
+    with pytest.raises(ParseError) as caught:
+        Parser(tokens).parse_expression_only()
+    error = caught.value
+    assert error.category == "INVALID_TOKEN_STREAM"
+    assert error.expected == "token start at or after previous token end"
+    assert error.actual.type is kind
+    assert (error.line, error.column) == location
+    assert "INVALID_TOKEN_STREAM" in str(error)
+
+
+@pytest.mark.parametrize("source", [
+    "1+2", "1  +    2  ", "1/* comment */+2", "1\n +\n2\n", "1\r\n  +\r\n 2\r\n",
+])
+def test_adjacent_gapped_and_multiline_lexer_tokens_remain_valid(source):
+    tokens = Lexer(source).tokenize()
+    node = Parser(tokens).parse_expression_only()
+    assert node.operator is TokenType.PLUS
+    assert node.left.value == 1 and node.right.value == 2
+    assert (tokens[-1].line, tokens[-1].column) >= (
+        tokens[-2].end_line, tokens[-2].end_column
+    )
+
+
+def test_ordered_manual_tokens_with_multiline_gap_and_eof_are_valid():
+    tokens = [
+        Token(TokenType.INT_LITERAL, "1", 1, 1, 1, 1, 2),
+        Token(TokenType.PLUS, "+", None, 2, 2, 2, 3),
+        Token(TokenType.INT_LITERAL, "2", 2, 3, 1, 3, 2),
+        Token(TokenType.EOF, "", None, 4, 1, 4, 1),
+    ]
+    node = Parser(tokens).parse_expression_only()
+    assert (node.span.start_line, node.span.end_line) == (1, 3)
