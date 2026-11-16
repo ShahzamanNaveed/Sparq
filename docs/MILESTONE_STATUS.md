@@ -4,7 +4,7 @@
 |---|---|---|
 | M1 | Language Specification and Grammar Design | Complete and approved |
 | M2 | Lexical Analysis | Complete and accepted |
-| M3 | Syntax Analysis and AST | Not started |
+| M3 | Syntax Analysis and AST | In progress; Task 02B corrections ready for group review |
 | M4 | Syntax-Directed Translation and Semantic Analysis | Not started |
 | M5 | Intermediate Code Generation | Not started |
 | M6 | Code Optimization | Not started |
@@ -20,3 +20,17 @@ M2 Task 03: **Completed.** Independent read-only lexer review gave a conditional
 M2 Task 04: **Completed.** Large-integer token display was corrected and regression-tested. The lexer API and approved specification were not changed.
 
 M2 Task 05: **Completed.** The student group accepted M2. Final validation passed (123 passed, 0 failed, 0 skipped), the hello example tokenized successfully, and the first local Git baseline was prepared. No M3 or later implementation has started.
+
+M3 Task 01: **Design review completed.** Recursive-descent parser and AST architecture were reviewed as the basis for implementation.
+
+M3 Task 02: **Implemented and verified; awaiting group review.** All approved AST node records and the expression-only recursive-descent parser are present. The parser requires a final EOF token and does not parse programs or statements. The complete suite passed (181 tests). The frozen specification and lexer were not changed.
+
+M3 Task 02A: **Independent audit completed; conditional pass.** The read-only review identified mutable list inputs retained by tuple-annotated AST fields and malformed token payloads reaching parser construction and diagnostics.
+
+M3 Task 02B: **Focused corrections completed; awaiting group review.** All six AST collection fields snapshot list inputs as tuples and reject other collection input types. Parser initialization validates essential token fields, and malformed-token diagnostics are bounded. Regression tests passed with the full suite (217 passed, 0 failed, 0 skipped), including all 123 original lexer tests. The frozen specification and lexer were not changed.
+
+M3 Task 03: **Not started.** Complete program and statement parsing.
+
+M3 Task 04: **Not started.** Parser theory demonstrations.
+
+M3 Task 05: **Not started.** Independent parser review.
