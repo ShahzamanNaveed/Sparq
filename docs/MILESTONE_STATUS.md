@@ -5,7 +5,7 @@
 | M1 | Language Specification and Grammar Design | Completed and approved |
 | M2 | Lexical Analysis | Completed and accepted |
 | M3 | Syntax Analysis and AST | Completed; ready for student-group acceptance |
-| M4 | Syntax-Directed Translation and Semantic Analysis | Not started |
+| M4 | Syntax-Directed Translation and Semantic Analysis | In progress |
 | M5 | Intermediate Code Generation | Not started |
 | M6 | Code Optimization | Not started |
 | M7 | Target Code Generation and VM | Not started |
@@ -49,4 +49,14 @@ M3 Task 05: **Independent final audit completed; conditional pass.** The product
 
 M3 Task 06: **Corrections completed and verified.** A separate operator-precedence recognizer generates four complete traces using deterministic handle selection and exhaustive unit closure. It recognizes the illustrative arithmetic grammar; it does not construct a unique parse tree or parse the complete Sparq grammar. The educational LR trace handles zero-width reductions, and the LR document describes all three demonstration grammars. The complete suite passed (362 passed, 0 failed, 0 skipped), including 23 new test cases; LL(1), LR, and operator-precedence document checks passed. The frozen specification and production compiler were not changed.
 
-M3 Task 07: **Final verification completed; ready for student-group acceptance.** Independently checked the four documented precedence traces and a new nested expression; confirmed LR epsilon reductions preserve the state stack and use GOTO. Final regression validation: **362 passed, 0 failed, 0 skipped**. The LL(1), LR, and operator-precedence documentation checks passed. M3 Tasks 01–07 are completed; student-group acceptance remains pending. M4–M8 have not started.
+M3 Task 07: **Final verification completed; ready for student-group acceptance.** Independently checked the four documented precedence traces and a new nested expression; confirmed LR epsilon reductions preserve the state stack and use GOTO. Final regression validation: **362 passed, 0 failed, 0 skipped**. The LL(1), LR, and operator-precedence documentation checks passed. M3 Tasks 01–07 were completed; student-group acceptance remained pending at that checkpoint. M4–M8 had not started then.
+
+M4 Task 01: **Architecture approved.** The student group approved separate namespaces, lexical scopes, signature precollection, immutable ASTs, separate annotations, fail-fast diagnostics, and stable symbol IDs.
+
+M4 Task 02: **Implemented; pending student-group review.** Scalar and return type representations, immutable variable/array/function symbols, hierarchical scopes, deterministic per-session IDs, controlled semantic diagnostics, and function-signature collection are in place. Focused infrastructure and integration tests passed. Full regression validation: **380 passed, 0 failed, 0 skipped** (the previous 362 tests remain passing). No complete semantic analyzer has been implemented.
+
+M4 Task 02A: **Independent audit completed; conditional pass.** The read-only review confirmed three public-object invariant gaps: scalar positions could retain VOID in direct symbol construction, function signatures could retain caller-owned lists, and scope identities and parents could be reassigned. The full suite passed (380 passed, 0 failed, 0 skipped).
+
+M4 Task 02B: **Invariant corrections implemented; pending student-group review.** Symbol constructors now enforce semantic type and signature collection invariants, and scope identity and ancestry are read-only while local declarations remain supported. New regression coverage includes these three corrections and selected scope-lifecycle cases. Full validation: **411 passed, 0 failed, 0 skipped**; the previous 380 tests remain passing.
+
+M4 Tasks 03–08: **Not started.** M5–M8 remain not started.
