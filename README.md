@@ -2,14 +2,14 @@
 
 Sparq is a statically typed, procedural programming language designed for the CS4031 Compiler Construction semester project. This repository will contain a Python 3.11+ compiler for `.spq` source files. The approved language specification is [docs/SPARQ_LANGUAGE_SPEC.md](docs/SPARQ_LANGUAGE_SPEC.md).
 
-The planned compiler phases are lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, optimization, and code generation for a custom register-based virtual machine. The lexer, parser, immutable AST, and parser-theory demonstrations are complete. Semantic analysis now integrates signatures, every function body, and START into a complete program result; educational SDD, SDT, attribute, and expression-DAG demonstrations are also available. M4 implementation and final independent verification are complete and accepted by the student group; the last verified regression run passed 1190 tests. M5 has not started. TAC, production optimization, target-code generation, and VM execution have not started.
+The planned compiler phases are lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, optimization, and code generation for a custom register-based virtual machine. The lexer, parser, immutable AST, and parser-theory demonstrations are complete. Semantic analysis now integrates signatures, every function body, and START into a complete program result; educational SDD, SDT, attribute, and expression-DAG demonstrations are also available. M4 implementation and final independent verification are complete and accepted by the student group. M5 Tasks 01–04 are completed and accepted. The [M5 intermediate-code architecture](docs/INTERMEDIATE_CODE_GENERATION.md), core typed IR records and builder, scalar-expression lowering, and partial straight-line statement, array, READ, and SHOW lowering are in place. Task 04A's conditional audit found a nested-occurrence selection issue, corrected in Task 04B and approved by the student group. Tasks 05–08 have not started; control-flow lowering, calls, RETURN lowering, and complete TAC generation remain future work. The latest verified regression baseline is 1435 passed, 0 failed, 0 skipped. Optimization, target-code generation, and VM execution have not started.
 
 ## Structure
 
 - `docs/`: frozen M1 specification, milestone tracker, and compiler-theory and semantic guides.
-- `sparq/`: lexer, recursive-descent parser, immutable AST, and semantic component analyzers.
+- `sparq/`: lexer, recursive-descent parser, immutable AST, semantic analyzers, and partial typed IR lowering components.
 - `tools/`: separate educational parser-theory and semantic demonstrations.
-- `tests/`: pytest coverage for lexical, syntax, and semantic behavior.
+- `tests/`: pytest coverage for lexical, syntax, semantic, and partial IR lowering behavior.
 - `examples/`: reference Sparq source programs, which cannot yet be executed.
 
 ## Python environment

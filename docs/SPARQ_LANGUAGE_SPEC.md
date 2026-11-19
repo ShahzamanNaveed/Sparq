@@ -321,6 +321,8 @@ INT is an arbitrary-precision signed integer. FLOAT is finite IEEE 754 binary64 
 
 Mixed numeric comparisons promote INT to FLOAT. Ordered comparisons produce BOOL and require numeric operands. Equality produces BOOL and permits equal scalar types or mixed numeric types; FLOAT equality compares represented values exactly. NOT, AND, and OR require BOOL and produce BOOL. Evaluate operands left to right; AND and OR short circuit and skip the right operand entirely when determined.
 
+For binary expressions other than short-circuit AND and OR, evaluate the left operand and immediately perform any implicit conversion required at that operand's use site before evaluating the right operand. Evaluate the right operand and perform any required conversion before applying the binary operator. If operand evaluation or conversion fails, execution stops at that error; later operand evaluation and the binary operation do not occur.
+
 INT-to-FLOAT conversion must yield a finite binary64 value. Failure raises an error when that conversion executes. FLOAT operations yielding nonfinite values raise runtime errors. Arithmetic constant folding must use these same rules and preserve the execution point of observable errors.
 
 ## 14. Conditional statements
@@ -452,6 +454,8 @@ The planned sequence is .spq source → lexer with source positions → recursiv
 ## 25. Approved decisions and change control
 
 M1 Task 03's 26-section language design and M1 Task 04's numeric, error, evaluation-order, recursion, array, and I/O clarifications were approved by the student group for version 1.0. The initial VM maximum call depth is configurable and defaults to 1,000. No language syntax, grammar, keyword, or semantic changes may be introduced without explicit student-group review and approval. Implementation details that do not alter language behavior can be resolved during development and documented.
+
+M5 Task 03B: The student group approved the immediate binary operand-conversion timing stated in Section 13 to resolve the previously ambiguous precedence of conversion errors and later operand evaluation. This is a narrow clarification within version 1.0; it changes no grammar, operator, type-compatibility, or implicit-conversion rule.
 
 ## 26. Requirements traceability table
 
