@@ -4,7 +4,7 @@
 |---|---|---|
 | M1 | Language Specification and Grammar Design | Completed and approved |
 | M2 | Lexical Analysis | Completed and accepted |
-| M3 | Syntax Analysis and AST | Completed; ready for student-group acceptance |
+| M3 | Syntax Analysis and AST | Completed and accepted |
 | M4 | Syntax-Directed Translation and Semantic Analysis | In progress |
 | M5 | Intermediate Code Generation | Not started |
 | M6 | Code Optimization | Not started |
@@ -49,14 +49,42 @@ M3 Task 05: **Independent final audit completed; conditional pass.** The product
 
 M3 Task 06: **Corrections completed and verified.** A separate operator-precedence recognizer generates four complete traces using deterministic handle selection and exhaustive unit closure. It recognizes the illustrative arithmetic grammar; it does not construct a unique parse tree or parse the complete Sparq grammar. The educational LR trace handles zero-width reductions, and the LR document describes all three demonstration grammars. The complete suite passed (362 passed, 0 failed, 0 skipped), including 23 new test cases; LL(1), LR, and operator-precedence document checks passed. The frozen specification and production compiler were not changed.
 
-M3 Task 07: **Final verification completed; ready for student-group acceptance.** Independently checked the four documented precedence traces and a new nested expression; confirmed LR epsilon reductions preserve the state stack and use GOTO. Final regression validation: **362 passed, 0 failed, 0 skipped**. The LL(1), LR, and operator-precedence documentation checks passed. M3 Tasks 01–07 were completed; student-group acceptance remained pending at that checkpoint. M4–M8 had not started then.
+M3 Task 07: **Final verification completed; subsequently accepted by the student group.** Independently checked the four documented precedence traces and a new nested expression; confirmed LR epsilon reductions preserve the state stack and use GOTO. Final regression validation: **362 passed, 0 failed, 0 skipped**. The LL(1), LR, and operator-precedence documentation checks passed. M3 Tasks 01–07 were completed; acceptance was pending at that checkpoint and occurred before M4 began. M4–M8 had not started then.
 
-M4 Task 01: **Architecture approved.** The student group approved separate namespaces, lexical scopes, signature precollection, immutable ASTs, separate annotations, fail-fast diagnostics, and stable symbol IDs.
+M4 Task 01: **Completed and accepted.** The student group approved separate namespaces, lexical scopes, signature precollection, immutable ASTs, separate annotations, fail-fast diagnostics, and stable symbol IDs.
 
-M4 Task 02: **Implemented; pending student-group review.** Scalar and return type representations, immutable variable/array/function symbols, hierarchical scopes, deterministic per-session IDs, controlled semantic diagnostics, and function-signature collection are in place. Focused infrastructure and integration tests passed. Full regression validation: **380 passed, 0 failed, 0 skipped** (the previous 362 tests remain passing). No complete semantic analyzer has been implemented.
+M4 Task 02: **Completed and accepted.** Scalar and return type representations, immutable variable/array/function symbols, hierarchical scopes, deterministic per-session IDs, controlled semantic diagnostics, and function-signature collection are in place. Focused infrastructure and integration tests passed. Full regression validation at that checkpoint: **380 passed, 0 failed, 0 skipped**. No complete semantic analyzer has been implemented.
 
-M4 Task 02A: **Independent audit completed; conditional pass.** The read-only review confirmed three public-object invariant gaps: scalar positions could retain VOID in direct symbol construction, function signatures could retain caller-owned lists, and scope identities and parents could be reassigned. The full suite passed (380 passed, 0 failed, 0 skipped).
+M4 Task 02A: **Completed and accepted after correction.** The read-only review gave a conditional pass and identified three public-object invariant gaps: scalar positions could retain VOID in direct symbol construction, function signatures could retain caller-owned lists, and scope identities and parents could be reassigned. The full suite passed (380 passed, 0 failed, 0 skipped).
 
-M4 Task 02B: **Invariant corrections implemented; pending student-group review.** Symbol constructors now enforce semantic type and signature collection invariants, and scope identity and ancestry are read-only while local declarations remain supported. New regression coverage includes these three corrections and selected scope-lifecycle cases. Full validation: **411 passed, 0 failed, 0 skipped**; the previous 380 tests remain passing.
+M4 Task 02B: **Completed and accepted.** Symbol constructors now enforce semantic type and signature collection invariants, and scope identity and ancestry are read-only while local declarations remain supported. New regression coverage includes these three corrections and selected scope-lifecycle cases. Full validation: **411 passed, 0 failed, 0 skipped**; the previous 380 tests remain passing.
 
-M4 Tasks 03–08: **Not started.** M5–M8 remain not started.
+M4 Task 03: **Completed and accepted.** Scalar compatibility, all approved unary and binary operator type rules, identity-based expression annotations, lexical symbol binding, and array-element typing are implemented. Function-call expressions remain explicitly deferred. Initial regression validation: **824 passed, 0 failed, 0 skipped**; the previous 411 tests remained passing.
+
+M4 Task 03A: **Completed and accepted after correction.** The read-only review independently verified 360 type-rule combinations and found a parser-produced long expression could expose `RecursionError`, plus direct annotation/result constructors could accept contradictory records. It also identified one malformed-argument documentation inconsistency. The full suite passed (824 passed, 0 failed, 0 skipped).
+
+M4 Task 03B: **Completed and accepted.** Expression stack exhaustion now raises controlled `SemanticError(RESOURCE_LIMIT)`. Direct conversion and completed-analysis records enforce their supported invariants, and the documentation describes malformed direct arguments accurately. Focused regression tests cover the corrections and selected runtime/deferred-call boundaries. Full validation: **831 passed, 0 failed, 0 skipped**; the previous 824 tests remain passing.
+
+M4 Task 04: **Completed and accepted.** Partial statement analysis validates scalar and array declarations, initialization, assignments, and sequential supported blocks. At that checkpoint calls were still deferred. Initial full regression validation: **924 passed, 0 failed, 0 skipped**; the previous 831 tests remained passing. No complete program-level semantic analysis or later compiler phase was added.
+
+M4 Task 04A: **Completed and accepted after correction.** The read-only review found no confirmed source-language defect in the supported paths. It reproduced contradictory direct semantic records and a mutable completed-result collection. Full validation at that checkpoint: **924 passed, 0 failed, 0 skipped**.
+
+M4 Task 04B: **Completed and accepted.** Statement conversion destinations, typed defaults, writable targets, expression uses, and completed result coverage now enforce their supported structural contracts. Completed results snapshot caller-owned collections. Declaration compatibility, failure policy, and deferred-boundary regression coverage were expanded. Full validation: **967 passed, 0 failed, 0 skipped**; all previous 924 tests remained passing.
+
+M4 Task 05: **Completed and accepted.** Signature-based call validation, argument and return conversions, `CallExpr` and `CallStmt` analysis, parameter-scope function bodies, RETURN checks, and conservative structural guaranteed-return analysis are in place. Full validation at that checkpoint: **1082 passed, 0 failed, 0 skipped**. The Task 05A audit counted **seven** former `DEFERRED_CALL` cases migrated across two earlier tests, correcting the prior report of six.
+
+M4 Task 05A: **Independent audit passed and accepted.** The audit independently checked all 25 argument and 25 return scalar compatibility pairs, structural return paths, scope and record behavior, failure policy, and the 1082-test baseline. No confirmed implementation defect required Task 05B.
+
+M4 Task 05B: **Not required.**
+
+M4 Task 06: **Completed and accepted.** All parser-produced statement categories receive semantic validation: conditions, WHEN/OTHERWISE, SELECT/CASE/DEFAULT, WHILE, DO-WHILE, REPEAT, READ, and SHOW. Function-body RETURN and conservative return-path checks integrate with these statements. Six earlier `DEFERRED_STATEMENT` cases were deliberately migrated; **68 focused tests** were added. Full validation at that checkpoint: **1150 passed, 0 failed, 0 skipped**. Complete program-level semantic integration remains for Task 08.
+
+M4 Task 06A: **Independent audit passed and accepted.** The review found no confirmed Task 06 semantic implementation defect. M4 Task 06B: **Not required.**
+
+M4 Task 07: **Implemented.** [SDD_SDT_DEMONSTRATIONS.md](SDD_SDT_DEMONSTRATIONS.md) and the separate educational utility demonstrate SDD, SDT, S- and L-attributed definitions, attribute graphs and orders, semantic action traces, and a restricted expression DAG. **15 focused tests** were added. Full validation at that checkpoint: **1165 passed, 0 failed, 0 skipped**. All four documented demonstration commands succeeded. The frozen specification and production compiler were not changed.
+
+M4 Task 07A: **Independent academic audit completed with conditional pass.** The executable demonstration paths agreed with production semantics. The audit identified incomplete formal attribute equations and grammar bridges, an omitted parse-tree conversion annotation, incomplete direct L-attribute edges, one direct DAG-record invariant gap, and outdated README status.
+
+M4 Task 07B: **Formal and DAG invariant corrections implemented; pending student-group review.** The illustrative SDD and L-attributed grammar, parse tree, and direct dependency graph are complete for the worked subset. Direct DAG records validate conversion roles and child-type consistency. README now reflects the implemented semantic components. **5 focused regression tests** were added; full validation: **1170 passed, 0 failed, 0 skipped**. The frozen specification and production compiler remain unchanged. Git publication remains intentionally deferred.
+
+M4 Task 08: **Not started.** M4 remains in progress; M5–M8 remain not started. Git publication remains intentionally deferred; Task 07 work has not been committed or pushed.

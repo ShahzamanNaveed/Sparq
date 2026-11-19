@@ -297,15 +297,20 @@ def test_ast_remains_immutable_and_failed_inference_exposes_no_partial_result():
     assert valid.annotations.type_of(ast) is None
 
 
-def test_call_expression_has_explicit_deferred_boundary():
+def test_call_expression_validates_signature_arguments_and_function_binding():
     ast = program("FUNC f(INT x) -> INT { RETURN x; } START {}")
     context = SemanticContext()
     context.collect_signatures(ast)
     context.begin_start()
-    for source in ("f(1)", "f()", "f(TRUE)", "missing(1)"):
+    valid = infer("f(1)", context)
+    assert valid.type is T.INT
+    assert valid.annotations.function_of(valid.root) is context.functions.resolve("f")
+    for source, category in (("f()", "ARGUMENT_COUNT"),
+                             ("f(TRUE)", "ARGUMENT_TYPE_MISMATCH"),
+                             ("missing(1)", "UNKNOWN_FUNCTION")):
         with pytest.raises(SemanticError) as caught:
             infer(source, context)
-        assert caught.value.category == "DEFERRED_CALL"
+        assert caught.value.category == category
         assert caught.value.name == source.split("(")[0]
 
 
@@ -401,7 +406,7 @@ def test_shared_ast_node_conversions_remain_distinct_by_parent_and_role():
     assert result.annotations.conversions_for(root) == ()
 
 
-def test_runtime_index_traps_and_nested_calls_keep_their_boundaries():
+def test_runtime_index_traps_and_nested_calls_use_real_types():
     parsed = program("FUNC f() -> INT { RETURN 1; } START { INT a[2]; }")
     context = SemanticContext()
     context.collect_signatures(parsed)
@@ -410,10 +415,11 @@ def test_runtime_index_traps_and_nested_calls_keep_their_boundaries():
     analyzer = ExpressionAnalyzer(context)
     for source in ("a[-1]", "a[5]", "a[1 / 0]"):
         assert analyzer.infer(expression(source)).type is T.INT
-    for source in ("f() + 1", "a[f()]", "TRUE OR f()"):
-        with pytest.raises(SemanticError) as caught:
-            analyzer.infer(expression(source))
-        assert caught.value.category == "DEFERRED_CALL"
+    for source in ("f() + 1", "a[f()]"):
+        assert analyzer.infer(expression(source)).type is T.INT
+    with pytest.raises(SemanticError) as caught:
+        analyzer.infer(expression("TRUE OR f()"))
+    assert caught.value.category == "INVALID_OPERAND_TYPE"
 
 
 def test_reanalysis_after_scope_exit_retains_prior_binding_results():
