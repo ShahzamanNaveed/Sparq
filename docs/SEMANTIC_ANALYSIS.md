@@ -85,7 +85,7 @@ Source-level expression failures raise `SemanticError`, including `INVALID_OPERA
 
 At the Task 03 checkpoint, `CallExpr` was explicitly deferred. Task 05 now validates calls using precollected signatures, as described below.
 
-Task 04 added partial validation of declarations, assignments, arrays, and supported blocks. Task 05 added calls, returns, and structural return guarantees. Task 06 validates all parser-produced statement categories. Later M4 tasks will address remaining program-level integration and educational SDD/SDT demonstrations. No AST node is mutated by this infrastructure.
+Task 04 added partial validation of declarations, assignments, arrays, and supported blocks. Task 05 added calls, returns, and structural return guarantees. Task 06 validates all parser-produced statement categories. Tasks 07 and 08 added educational SDD/SDT demonstrations and complete program-level integration. No AST node is mutated by this infrastructure.
 
 ## Partial statement analysis (Task 04)
 
@@ -166,8 +166,42 @@ Task 05 performs no function execution, call-frame allocation, pass-by-value cop
 
 Function analysis now validates complete supported control-flow and I/O bodies before applying the unchanged conservative return checker. RETURN keeps the active function context through nested scopes; START still rejects it. Non-VOID bodies without a structural guarantee still raise `MISSING_RETURN`. A failed statement or function analysis publishes no successful result, invalidates its context, clears temporary initialization markers, and unwinds nested scopes. Deep statement traversal raises controlled `RESOURCE_LIMIT` at the public semantic boundary. Earlier completed results remain usable; new attempts require a fresh context.
 
-This pass only records static facts. It performs no condition execution, branch selection, loop execution, SELECT dispatch, input consumption, output formatting, numeric conversion, bounds check, or VM work. Complete program-level semantic orchestration remains for a later authorized task.
+This pass only records static facts. It performs no condition execution, branch selection, loop execution, SELECT dispatch, input consumption, output formatting, numeric conversion, bounds check, or VM work. Task 08 supplies complete program-level semantic orchestration.
 
 ## Educational attribute and DAG demonstrations (Task 07)
 
-[SDD_SDT_DEMONSTRATIONS.md](SDD_SDT_DEMONSTRATIONS.md) gives reproducible SDD and SDT examples, synthesized expression types, inherited lexical environments, valid attribute dependency orders, and a restricted educational expression DAG. `tools/semantic_demonstrations.py` uses the production parser and semantic analysis results: expression types and conversions are synthesized facts; scope and initializing-state information illustrate inherited environments and left-to-right declaration visibility. Its action trace is an explanatory replay of validated metadata, not semantic actions inserted into the production parser. Its DAG shares immutable expression *representations* within one example; it performs no production optimization or runtime common-subexpression elimination. Complete program-level semantic integration remains for Task 08.
+[SDD_SDT_DEMONSTRATIONS.md](SDD_SDT_DEMONSTRATIONS.md) gives reproducible SDD and SDT examples, synthesized expression types, inherited lexical environments, valid attribute dependency orders, and a restricted educational expression DAG. `tools/semantic_demonstrations.py` uses the production parser and semantic analysis results: expression types and conversions are synthesized facts; scope and initializing-state information illustrate inherited environments and left-to-right declaration visibility. Its action trace is an explanatory replay of validated metadata, not semantic actions inserted into the production parser. Its DAG shares immutable expression *representations* within one example; it performs no production optimization or runtime common-subexpression elimination.
+
+## Complete program integration (Task 08)
+
+`SemanticAnalyzer(program).analyze()` from `sparq.program_semantic` accepts the original parser `Program` AST. Each call creates a fresh session: collect all function signatures, analyze each function body in source order, and finally analyze START in an independent root scope. A fail-fast error at any stage prevents publication of `AnalysisResult`. Lexical and parser errors remain in their preceding phases. Repeat calls create independent, deterministic session-local IDs. Completed earlier results remain valid; root scopes are exited after analysis.
+
+The frozen `AnalysisResult` owns the original AST, ordered signatures and corresponding `FunctionAnalysis` records, START `StatementAnalysis`, its root scope, and detached immutable `ScopeSnapshot` records with scope IDs, parent IDs, and local symbols. Construction validates full function coverage and identity ownership, START ownership, and scope coverage, then **seals every retained lexical scope**. Public `Scope.declare(...)` raises `ValueError` on these completed scopes; public lookup remains available and agrees with the detached snapshots. The same rule covers START, function roots, nested blocks, branches, and REPEAT header/body scopes. `function_of(declaration)` uses AST identity, while `signature_of(name)` and `scope_of(id)` provide read-only lookups. The live `SemanticContext` is not part of the completed result. Standalone lower-level analysis still uses mutable scopes until a complete program result finalizes them. Future consumers should use the detached snapshots and validated occurrence records, not attempt new declarations.
+
+```python
+from sparq.lexer import Lexer
+from sparq.parser import Parser
+from sparq.program_semantic import SemanticAnalyzer
+
+program = Parser(Lexer("START { INT x; SHOW(x); }").tokenize()).parse()
+result = SemanticAnalyzer(program).analyze()
+symbol = result.start.declaration_of(program.main.statements[0])
+show_type = result.start.show_of(program.main.statements[1]).type
+root_scope = result.scope_of(result.start_scope.id)
+```
+
+Use the owning function's `body` or `result.start` to retrieve declarations, parameter symbols, defaults, writable targets, control-flow conditions and scopes, normalized CASE labels, calls, RETURN records, expression types and bindings, and `all_conversions()`. These existing records preserve operand, initializer, array-element, assignment, argument, and RETURN conversions. An owner-specific lookup avoids ambiguity for a manually shared AST node analyzed in different contexts. Symbols and scopes remain distinguishable after their analysis scope exits. IDs are session-local; they are not global across independent runs.
+
+Run `.venv\Scripts\python -m sparq.program_semantic examples/hello.spq` to lex, parse, and validate without executing source. Ordinary lexical, syntax, and semantic errors print a diagnostic and return a nonzero exit.
+
+### Future TAC input contract
+
+M5 should consume the validated original AST with its matching function and START results. Existing symbol, sealed-scope snapshot, expression, conversion, target, default, call, return, and CASE records provide type and binding decisions; TAC need not repeat general type checking or lexical name resolution. Lowering must follow frozen **runtime** order rather than static annotation order: left-to-right operands and arguments, short-circuit logic, one SELECT selector evaluation without fallthrough, DO-WHILE body before condition, indexed assignment bounds check before RHS, indexed READ bounds check before input, and preservation of arithmetic traps and numeric conversion failures. INT remains arbitrary precision and FLOAT remains finite binary64; observable side effects and errors must retain their specified execution points.
+
+REPEAT executes an optional initializer **once**, evaluates its condition before each iteration (omission means TRUE), exits on FALSE, otherwise executes the body, then its optional update, and repeats from the condition. Static semantic checking may inspect initializer, condition, update, then body; TAC and runtime must use initializer → condition → body → update.
+
+Calls evaluate scalar arguments left to right, apply required INT-to-FLOAT use-site conversions, and pass the resulting scalar values **by value** into parameters. Assigning a parameter does not mutate the caller's scalar storage. Runtime frames and value transfer are future work; arrays are not parameters. The configurable initial VM call-depth maximum is **1,000**. Exceeding it must produce a controlled Sparq runtime error for stack exhaustion, not a Python recursion error; static analysis does not enforce that runtime limit. The frozen specification does not prescribe a particular diagnostic category string. No TAC instruction, temporary, label, basic block, frame, or runtime value is implemented here.
+
+### Phase 4 requirement mapping
+
+The course handout requires AST and DAG construction, SDD/SDT, S-/L-attributed evaluation, symbol tables and scopes, type checking and conversions, function argument and return validation, and semantic-error detection. The parser supplies the AST; the separate Task 07 guide and utility supply a restricted **educational** DAG and attribute demonstrations; the production semantic components and program coordinator supply complete static program validation. Function/operator overloading and polymorphism are conditional on language support and are not Sparq v1.0 features. Production DAG optimization belongs to a later phase. M4 implementation and final independent verification are complete and accepted by the student group. The last verified regression run passed **1190 tests**, with **0 failed** and **0 skipped**. M5 has not started.

@@ -117,9 +117,16 @@ class Scope:
     id: int
     parent: Scope | None = None
     _symbols: dict[str, VariableSymbol] = field(default_factory=dict, init=False, repr=False)
+    _sealed: bool = field(default=False, init=False, repr=False)
+
+    def _seal(self) -> None:
+        """Finalize a scope after complete program validation."""
+        object.__setattr__(self, "_sealed", True)
 
     def declare(self, symbol: VariableSymbol) -> VariableSymbol:
         """Insert locally; a same-scope duplicate is an error."""
+        if self._sealed:
+            raise ValueError("completed lexical scope is read-only")
         if symbol.scope_id != self.id:
             raise ValueError("symbol belongs to a different scope")
         if symbol.name in self._symbols:

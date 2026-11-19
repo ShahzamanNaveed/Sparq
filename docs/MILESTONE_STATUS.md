@@ -2,10 +2,10 @@
 
 | Milestone | Scope | Status |
 |---|---|---|
-| M1 | Language Specification and Grammar Design | Completed and approved |
+| M1 | Language Specification and Grammar Design | Completed, approved and accepted |
 | M2 | Lexical Analysis | Completed and accepted |
 | M3 | Syntax Analysis and AST | Completed and accepted |
-| M4 | Syntax-Directed Translation and Semantic Analysis | In progress |
+| M4 | Syntax-Directed Translation and Semantic Analysis | Completed, independently verified and accepted |
 | M5 | Intermediate Code Generation | Not started |
 | M6 | Code Optimization | Not started |
 | M7 | Target Code Generation and VM | Not started |
@@ -81,10 +81,18 @@ M4 Task 06: **Completed and accepted.** All parser-produced statement categories
 
 M4 Task 06A: **Independent audit passed and accepted.** The review found no confirmed Task 06 semantic implementation defect. M4 Task 06B: **Not required.**
 
-M4 Task 07: **Implemented.** [SDD_SDT_DEMONSTRATIONS.md](SDD_SDT_DEMONSTRATIONS.md) and the separate educational utility demonstrate SDD, SDT, S- and L-attributed definitions, attribute graphs and orders, semantic action traces, and a restricted expression DAG. **15 focused tests** were added. Full validation at that checkpoint: **1165 passed, 0 failed, 0 skipped**. All four documented demonstration commands succeeded. The frozen specification and production compiler were not changed.
+M4 Task 07: **Completed and accepted.** [SDD_SDT_DEMONSTRATIONS.md](SDD_SDT_DEMONSTRATIONS.md) and the separate educational utility demonstrate SDD, SDT, S- and L-attributed definitions, attribute graphs and orders, semantic action traces, and a restricted expression DAG. **15 focused tests** were added. Full validation at that checkpoint: **1165 passed, 0 failed, 0 skipped**. All four documented demonstration commands succeeded. The frozen specification and production compiler were not changed.
 
 M4 Task 07A: **Independent academic audit completed with conditional pass.** The executable demonstration paths agreed with production semantics. The audit identified incomplete formal attribute equations and grammar bridges, an omitted parse-tree conversion annotation, incomplete direct L-attribute edges, one direct DAG-record invariant gap, and outdated README status.
 
-M4 Task 07B: **Formal and DAG invariant corrections implemented; pending student-group review.** The illustrative SDD and L-attributed grammar, parse tree, and direct dependency graph are complete for the worked subset. Direct DAG records validate conversion roles and child-type consistency. README now reflects the implemented semantic components. **5 focused regression tests** were added; full validation: **1170 passed, 0 failed, 0 skipped**. The frozen specification and production compiler remain unchanged. Git publication remains intentionally deferred.
+M4 Task 07B: **Formal and DAG invariant corrections implemented and accepted.** The illustrative SDD and L-attributed grammar, parse tree, and direct dependency graph are complete for the worked subset. Direct DAG records validate conversion roles and child-type consistency. README now reflects the implemented semantic components. **5 focused regression tests** were added; full validation: **1170 passed, 0 failed, 0 skipped**. The frozen specification and production compiler remain unchanged. Git publication was deferred at that checkpoint; accepted work through Task 07B was subsequently committed at `2324b7c59c9361102e9426e1d9a1ab8272a87d55`.
 
-M4 Task 08: **Not started.** M4 remains in progress; M5–M8 remain not started. Git publication remains intentionally deferred; Task 07 work has not been committed or pushed.
+M4 Task 08: **Program-level semantic integration implemented; subsequently audited and corrected; pending student-group acceptance.** A fresh-session coordinator validates signatures, all function bodies, and START, then publishes a complete result. The CLI validates source through all three front-end phases. **17 new integration tests** were added; full validation: **1187 passed, 0 failed, 0 skipped**. M4 implementation is complete; M4 acceptance remains pending. M5–M8 have not started. Task 08 work is uncommitted and has not been pushed.
+
+M4 Task 08A: **Final independent audit completed with conditional pass and two findings.** It reproduced mutable completed START/function scopes and found three missing runtime obligations in the documented future TAC contract. The previous **1187 tests** passed; no source-language semantic defect was confirmed.
+
+M4 Task 08B: **Both Task 08A findings corrected and verified; pending final student-group review.** Complete program results now seal all retained lexical scopes after validation, preserving lookup and detached snapshots while rejecting public declaration. The future contract specifies full REPEAT runtime order, pass-by-value calls, and the configurable initial **1000**-call VM depth with controlled runtime stack error. **3 focused regression tests** were added; full validation: **1190 passed, 0 failed, 0 skipped**. M4 implementation and corrections are complete, pending final acceptance. M5–M8 remain not started. Task 08 and 08B changes are uncommitted and unpushed.
+
+M4 final closure: **PASS.** Focused independent verification confirmed completed-scope sealing, preserved analysis-time declarations and result ownership, all seven conversion records, and the frozen runtime obligations documented for future execution. Final regression validation: **1190 passed, 0 failed, 0 skipped**. The semantic CLI, four Task 07 demonstrations, syntax and import checks, and `git diff --check` passed. M4 implementation and verification are completed and ready for final student-group acceptance; acceptance has not yet been recorded. M5–M8 have not started. Closure changes remain uncommitted and unpushed.
+
+M4 final acceptance: **Completed, independently verified and accepted by the student group.** The group accepted the PASS closure and both verified Task 08A corrections. The final verified regression result remains **1190 passed, 0 failed, 0 skipped**. M5–M8 have not started. Task 08 and final acceptance documentation changes are uncommitted and unpushed.
