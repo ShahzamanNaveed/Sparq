@@ -14,7 +14,7 @@ The original semester-project handout's Phase 6 requires basic-block identificat
 | Copy propagation | Stable temporary aliases from redundant local loads and DAG hits are substituted within their basic block. |
 | Loop optimization | Constant-condition loop branches are simplified; unreachable bodies of `WHILE(FALSE)` are removed. Dynamic loops retain their condition/update order. |
 | Global optimization | Constant facts cross basic blocks when every incoming path agrees; branch pruning uses those facts. |
-| Machine-dependent optimization | **Pending.** The M7 target ISA, register count, and cost model are not yet defined. No target-specific optimization is claimed. This mandatory handout item prevents claiming full M6 course completion at this checkpoint. |
+| Machine-dependent optimization | M7 Task 03 added target DAG selection, register reuse, liveness cleanup and unused-spill removal for the approved three-register ISA. Its final independent audit passed and the student group accepted M6. |
 
 Algebraic INT identities (`x+0`, `x-0`, `x*1`, `x/1`) and unreachable-instruction cleanup are additional conservative transformations. FLOAT identities, `x*0`, speculative division, array-guard removal, and motion of effects or traps are unsupported. The local DAG does not perform global CSE, loop-invariant code motion, strength reduction, or instruction selection.
 
@@ -78,3 +78,24 @@ The actual listing retains `READSCALAR`, `INITARRAY`, `CHECKBOUNDS`, `LOADELEMEN
 The optimized CLI follows lexer, parser, semantic analysis, TAC generation, optimization, verification, then rendering. Invalid input produces a controlled nonzero exit without a partial successful listing. The optimizer does not infer source types again, execute source, or prove full semantic equivalence. The verifier checks IR ownership and path availability; preserving side effects and trap order depends on the stated conservative pass rules and regression tests. Future target-specific optimizations require M7's approved machine model and reverification of their output.
 
 At the M6 implementation checkpoint, focused tests cover exact INT folding, joins, loops, CSE, copies, effect barriers, traps, guards, calls, source spans, determinism, immutability, and CLI behavior. Full regression results are recorded in [MILESTONE_STATUS.md](MILESTONE_STATUS.md). The M7 array allocation-error precedence question remains open; this optimizer preserves runtime `InitArray` and does not decide that precedence.
+
+The later [M7 target architecture](TARGET_ARCHITECTURE.md) defines a three-register ISA, deterministic target cost, and a compatible allocation-error order without changing this optimizer. Task 03 adds a separate target-specific pass; the earlier paragraph records the historical M6 implementation checkpoint.
+
+## Phase 6 requirement reconciliation after M7 Task 03
+
+The Phase 6 handout lists techniques, but does not require unrestricted versions of every technique. The existing machine-independent pass remains unchanged. Task 03 adds the machine-dependent category without claiming full M6 acceptance before independent verification and student-group review.
+
+| Handout item | Current implementation | Coverage |
+|---|---|---|
+| Basic blocks and CFG | M6 routine analysis identifies leaders, edges, predecessors and reachability. Target Task 03 also divides at labels/transfers for local selection. | Implemented. |
+| DAG optimization | M6 local expression DAG CSE; M7 target DAG selects cached results for a restricted pure typed subset. | Conservative local subset; no global DAG scheduling. |
+| Constant folding and propagation | M6 exact bounded INT folding and cross-block must-constant propagation. | Conservative subset; FLOAT arithmetic remains runtime. |
+| Common-subexpression elimination | M6 local DAG CSE and M7 local target DAG reuse. | Conservative block-local subset. |
+| Dead-code elimination | M6 removes unreachable and dead pure TAC work; M7 removes dead register definitions and unused compiler-temporary spills. | Conservative, effect-preserving subset. |
+| Copy propagation | M6 stable temporary aliases within a block. | Conservative local subset. |
+| Loop optimization | M6 prunes provably false constant-condition loops. | Conservative subset; no invariant-code motion or unrolling. |
+| Global optimization | M6 must-constant facts and branch pruning cross basic blocks. | Conservative subset; no global CSE. |
+| Machine-dependent optimization | M7 Task 03 target DAG reuse, register reuse, liveness and spill cleanup under the three-register cost model. | Implemented, independently verified and accepted in a documented subset. |
+| Original/optimized comparison | TAC `--compare`; target `--compare-target` shows A/B/C target instructions and estimated costs. VM tests execute all three paths. | Implemented; no universal equivalence claim. |
+
+The handout's machine-dependent category has executable implementation. The final independent M6/M7 audit returned **PASS with no confirmed defects**, and the student group accepted M6. Phase 6 requirements are covered within the documented conservative scope: block-local DAG reuse, conservative loop and global optimization, and a three-register allocation policy. The target pass does not change source semantics, the accepted TAC optimizer, or the frozen specification. For the reproducible [optimization example](../examples/optimization.spq), target A/B/C counts and estimated costs are **63/84**, **48/69**, and **28/46**, respectively; each pair is instructions/cost. With input `5`, all three paths produce `14`, `12`, `0` on separate lines. Representative original and optimized VM executions matched observable results. Costs are model estimates rather than measured speedups, and finite tests do not prove formal equivalence. Final regression: **1662 passed, 0 failed, 0 skipped**. Further register allocation strategies and cross-block DAG scheduling are possible extensions, not claims of this milestone.
