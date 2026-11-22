@@ -1,0 +1,11 @@
+START {
+    INT x = 2 + 3 * 4;
+    INT y = x + 0;
+    SHOW(y);
+    INT z;
+    READ(z);
+    SHOW((z + 1) + (z + 1));
+    WHILE (FALSE) { SHOW(1 / 0); }
+    INT a[1];
+    SHOW(a[0]);
+}

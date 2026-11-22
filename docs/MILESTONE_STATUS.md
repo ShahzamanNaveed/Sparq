@@ -6,8 +6,8 @@
 | M2 | Lexical Analysis | Completed and accepted |
 | M3 | Syntax Analysis and AST | Completed and accepted |
 | M4 | Syntax-Directed Translation and Semantic Analysis | Completed, independently verified and accepted |
-| M5 | Intermediate Code Generation | Tasks 01–07 accepted; Task 08 implemented and self-verified, pending final independent M5 verification |
-| M6 | Code Optimization | Not started |
+| M5 | Intermediate Code Generation | Completed, independently verified and accepted |
+| M6 | Code Optimization | Machine-independent implementation completed; pending independent audit and target-specific handout requirement |
 | M7 | Target Code Generation and VM | Not started |
 | M8 | Integration, Testing, Documentation, Viva | Not started |
 
@@ -140,3 +140,7 @@ M5 Task 07: **Educational IR representations implemented and self-verified; pend
 M5 Task 07 acceptance: **Completed and accepted by the student group when authorizing Task 08.** The preceding entry preserves its implementation-checkpoint status and 1476-test result.
 
 M5 Task 08: **Complete TAC generation and IR verification implemented and self-verified; pending final independent M5 verification and group acceptance.** `TACGenerator` constructs each analyzed function once and START from exact symbol inventories, then publishes an `IRProgram` only after whole-program verification. The verifier checks exact semantic and CALL-target identity, source spans, structural routine contracts, reachable control flow, temporary and BOOL merge availability, array guard lifetime, and reachable fallthrough using a terminating fixed-point analysis. The CLI renders canonical typed TAC without execution. **33 new focused tests** were added; full validation: **1509 passed, 0 failed, 0 skipped**. The only existing valid example, `examples/hello.spq`, compiled successfully. The semantic CLI and educational IR demonstration also succeeded. M6–M8 have not started; the M7 allocation-error precedence question remains open. Task 08 changes have not been committed or pushed.
+
+M5 final audit and acceptance: **Task 08A passed and the student group accepted M5 when authorizing M6.** The accepted TAC generator, path-aware verifier, and educational demonstrations are present in local commit `60bfb8d95f3459749e90070bafc28a7a0c5bcb18`. The last verified M5 baseline was **1509 passed, 0 failed, 0 skipped**. The historical checkpoint statuses above are retained.
+
+M6 implementation: **Conservative typed-IR optimization implemented, pending independent audit; full course requirement remains conditional.** [CODE_OPTIMIZATION.md](CODE_OPTIMIZATION.md) records the Phase 6 handout requirements, basic blocks/CFG, exact INT constant folding, global must-constant propagation, local expression-DAG CSE, safe dead-code and copy cleanup, constant-loop pruning, and the original/optimized TAC comparison. `examples/optimization.spq` reduces from **28 to 17** START instructions while retaining reachable READ and array checks. **29 new focused tests** passed; full regression: **1538 passed, 0 failed, 0 skipped**. The required **machine-dependent optimization is pending M7 target instruction-set and cost decisions** and is not claimed complete. M7 and M8 have not started; the M7 array allocation-error precedence question remains open. This checkpoint has not been committed or pushed.

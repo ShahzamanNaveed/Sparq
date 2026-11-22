@@ -2,15 +2,15 @@
 
 Sparq is a statically typed, procedural programming language designed for the CS4031 Compiler Construction semester project. This repository will contain a Python 3.11+ compiler for `.spq` source files. The approved language specification is [docs/SPARQ_LANGUAGE_SPEC.md](docs/SPARQ_LANGUAGE_SPEC.md).
 
-The planned compiler phases are lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, optimization, and code generation for a custom register-based virtual machine. The lexer, parser, immutable AST, and parser-theory demonstrations are complete. Semantic analysis now integrates signatures, every function body, and START into a complete program result; educational SDD, SDT, attribute, and expression-DAG demonstrations are also available. M4 implementation and final independent verification are complete and accepted by the student group. M5 Tasks 01–04 are completed and accepted. The [M5 intermediate-code architecture](docs/INTERMEDIATE_CODE_GENERATION.md), core typed IR records and builder, scalar-expression lowering, and partial straight-line statement, array, READ, and SHOW lowering are in place. Task 04A's conditional audit found a nested-occurrence selection issue, corrected in Task 04B and approved by the student group. Tasks 05–08 have not started; control-flow lowering, calls, RETURN lowering, and complete TAC generation remain future work. The latest verified regression baseline is 1435 passed, 0 failed, 0 skipped. Optimization, target-code generation, and VM execution have not started.
+The planned compiler phases are lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, optimization, and code generation for a custom register-based virtual machine. The lexer, parser, immutable AST, semantic analyzer, and typed TAC generator are complete. M5 was independently verified and accepted. The [optimization guide](docs/CODE_OPTIMIZATION.md) describes M6's implemented machine-independent passes and their pending independent audit. The full regression suite currently passes **1538 tests**. The handout's machine-dependent optimization requirement awaits the M7 target model. Target-code generation and VM execution have not started.
 
 ## Structure
 
 - `docs/`: frozen M1 specification, milestone tracker, and compiler-theory and semantic guides.
-- `sparq/`: lexer, recursive-descent parser, immutable AST, semantic analyzers, and partial typed IR lowering components.
+- `sparq/`: lexer, recursive-descent parser, immutable AST, semantic analyzers, complete typed TAC generation and verification, and conservative optimization.
 - `tools/`: separate educational parser-theory and semantic demonstrations.
-- `tests/`: pytest coverage for lexical, syntax, semantic, and partial IR lowering behavior.
-- `examples/`: reference Sparq source programs, which cannot yet be executed.
+- `tests/`: pytest coverage for lexical, syntax, semantic, typed TAC generation, verification, and optimization.
+- `examples/`: reference Sparq source programs, which can be compiled to TAC but cannot yet be executed.
 
 ## Python environment
 
@@ -28,11 +28,19 @@ Identifiers are scanned completely before exact, case-sensitive keyword lookup. 
 
 Use `Parser(Lexer(source).tokenize()).parse()` to construct a complete `Program` AST. It accepts zero or more function declarations followed by one `START` block and requires the final EOF token. `Parser(tokens).parse_expression_only()` remains available for parsing a single expression. Invalid syntax raises `ParseError` with a category and source position. Parsing does not resolve names, check types, or execute code.
 
-No command to compile or run Sparq source exists yet. `examples/hello.spq` can be tokenized and parsed through the Python API.
+`examples/hello.spq` can be tokenized, parsed, semantically checked, and compiled to a verified TAC listing. Source execution awaits the later VM milestone.
 
 ## Semantic analysis
 
-Run `.venv\Scripts\python -m sparq.program_semantic examples/hello.spq` to lex, parse, and semantically validate a source file without executing it. Python callers can use `SemanticAnalyzer(program).analyze()` from `sparq.program_semantic`; the completed result retains the original AST, ordered function results, START analysis, and scope snapshots. See [docs/SEMANTIC_ANALYSIS.md](docs/SEMANTIC_ANALYSIS.md) for its annotation and future TAC input contract.
+Run `.venv\Scripts\python -m sparq.program_semantic examples/hello.spq` to lex, parse, and semantically validate a source file without executing it. Python callers can use `SemanticAnalyzer(program).analyze()` from `sparq.program_semantic`; the completed result retains the original AST, ordered function results, START analysis, and scope snapshots. See [docs/SEMANTIC_ANALYSIS.md](docs/SEMANTIC_ANALYSIS.md) for its annotation and TAC input contract.
+
+## Typed TAC
+
+Run `.venv\Scripts\python -m sparq.tac examples/hello.spq` to compile source through semantic analysis to a complete verified, readable Three-Address Code listing. Python callers can use `generate_tac(program, analysis)` or `TACGenerator(program, analysis).generate()` and `verify_program(ir_program)`; `format_tac(ir_program)` renders canonical IR. The generator requires the exact analyzed AST and does not execute the program. See [docs/INTERMEDIATE_CODE_GENERATION.md](docs/INTERMEDIATE_CODE_GENERATION.md) for ownership, path verification, and limitations.
+
+## Code optimization
+
+Run `.venv\Scripts\python -m sparq.tac examples/optimization.spq --compare` to display original and optimized verified TAC, or use `--optimize` for only the optimized listing. The default command remains unoptimized. Python callers can use `optimize_program(ir_program, analysis)` and `analyze_routine(routine)` from `sparq.optimization`. The optimizer does not execute source. See [docs/CODE_OPTIMIZATION.md](docs/CODE_OPTIMIZATION.md) for supported passes, safety limits, the handout requirement still pending, and the reproducible before/after example.
 
 ## Academic integrity
 

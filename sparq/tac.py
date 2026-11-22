@@ -16,6 +16,7 @@ from sparq.ir import (
 from sparq.ir_builder import IRBuilder
 from sparq.ir_verify import verify_program
 from sparq.lexer import Lexer
+from sparq.optimization import optimize_program
 from sparq.parser import Parser
 from sparq.program_semantic import AnalysisResult, SemanticAnalyzer
 from sparq.statement_lowering import StatementLowerer
@@ -117,12 +118,21 @@ def format_tac(program: IRProgram) -> str:
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Compile Sparq source to verified typed TAC")
     parser.add_argument("source", help=".spq source file")
+    parser.add_argument("--optimize", action="store_true", help="show verified optimized TAC")
+    parser.add_argument("--compare", action="store_true", help="show original and optimized TAC")
     args = parser.parse_args(argv)
     try:
         source = Path(args.source).read_text(encoding="utf-8")
         program = Parser(Lexer(source).tokenize()).parse()
         analysis = SemanticAnalyzer(program).analyze()
-        output = format_tac(generate_tac(program, analysis))
+        original = generate_tac(program, analysis)
+        if args.compare:
+            optimized = optimize_program(original, analysis)
+            output = "ORIGINAL TAC\n" + format_tac(original) + "\n\nOPTIMIZED TAC\n" + format_tac(optimized)
+        elif args.optimize:
+            output = format_tac(optimize_program(original, analysis))
+        else:
+            output = format_tac(original)
     except Exception as exc:
         message = str(exc)
         if len(message) > 240:
