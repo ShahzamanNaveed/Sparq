@@ -4,7 +4,7 @@ import pytest
 
 from sparq.expression_lowering import DeferredExpressionError
 from sparq.ir import (
-    ArrayRef, Binary, CheckBounds, Convert, Load, LoadElement, ParameterRef,
+    ArrayRef, Binary, Call, CheckBounds, Convert, Load, LoadElement, ParameterRef,
     ReadElement, ReadScalar, RoutineId, Show, VariableRef,
 )
 from sparq.ir_builder import IRBuilder
@@ -131,7 +131,7 @@ def test_mixed_numeric_show_places_conversion_before_binary_and_show():
     "SHOW(f());",
     "INT a[1]; SHOW(a[f()]);",
 ])
-def test_nested_io_calls_are_deferred_without_source_io(body, capsys):
+def test_nested_io_calls_lower_without_source_io(body, capsys):
     program = Parser(Lexer(
         f"FUNC f() -> INT {{ RETURN 0; }} START {{ {body} }}"
     ).tokenize()).parse()
@@ -140,6 +140,6 @@ def test_nested_io_calls_are_deferred_without_source_io(body, capsys):
     inventory = tuple(ArrayRef(owner, symbol) for _, symbol in semantic.start.declarations)
     builder = IRBuilder(owner, semantic.start_scope.id, local_symbols=inventory)
     lowerer = StatementLowerer(builder)
-    with pytest.raises(DeferredExpressionError):
-        lowerer.lower_block(semantic.start)
-    assert lowerer.failed and capsys.readouterr().out == ""
+    lowerer.lower_block(semantic.start)
+    assert sum(isinstance(item, Call) for item in builder.snapshot()) == 1
+    assert not lowerer.failed and capsys.readouterr().out == ""

@@ -1,8 +1,8 @@
 """Lower validated scalar expressions into one routine's typed IR builder.
 
 This is an internal M5 checkpoint component, not a complete TAC generator.
-Calls are deliberately deferred. A failed call invalidates the
-lowerer; callers discard its builder rather than publishing partial output.
+Failed lowering invalidates the lowerer; callers discard its builder rather
+than publishing partial output.
 """
 
 from __future__ import annotations
@@ -15,12 +15,15 @@ from sparq.ast_nodes import (
 )
 from sparq.ir import (
     ArrayRef, Binary, BoolMergeTemp, BranchBool, CheckBounds, Compare, Constant,
-    Convert, Jump, LabelRef, Load, LoadElement, Move, ParameterRef, Temporary,
-    Unary, Value, VariableRef,
+    Call, Convert, FunctionRef, Jump, LabelRef, Load, LoadElement, Move,
+    ParameterRef, Temporary, Unary, Value, VariableRef,
 )
 from sparq.ir_builder import IRBuilder
-from sparq.semantic import ConversionSite, ExpressionAnalysis, ExpressionAnnotations
-from sparq.symbols import ScalarType, SymbolKind, VariableSymbol
+from sparq.semantic import (
+    CallAnalysis, CallBinding, ConversionSite, ExpressionAnalysis,
+    ExpressionAnnotations,
+)
+from sparq.symbols import ScalarType, SymbolKind, VariableSymbol, VoidType
 from sparq.token import TokenType
 from sparq.type_rules import binary_rule, unary_result
 
@@ -123,6 +126,63 @@ class ExpressionLowerer:
         """Branch to caller-owned labels; the caller defines those destinations."""
         self._run(analysis, (true_label, false_label))
 
+    def lower_call(self, analysis: CallAnalysis) -> None:
+        """Append a validated standalone CALL, discarding a non-VOID result."""
+        if self._failed:
+            raise LoweringInputError("expression lowerer failed; discard its builder")
+        try:
+            if self.builder.is_complete or not isinstance(analysis, CallAnalysis):
+                raise LoweringInputError("open builder and CallAnalysis are required")
+            self._check_call(analysis.call, analysis.binding, analysis.annotations,
+                             value_context=False)
+            visited = 1
+            for argument, kind in zip(analysis.call.args, analysis.binding.argument_types):
+                visited += self._preflight(
+                    ExpressionAnalysis(argument, kind, analysis.annotations), start_depth=2,
+                )
+                if visited > self.max_nodes:
+                    raise LoweringResourceError("call exceeds lowering resource limit")
+            self._emit_call(analysis.call, analysis.binding, analysis.annotations,
+                            discard=True)
+        except RecursionError as exc:
+            self._failed = True
+            raise LoweringResourceError("call lowering exceeds the available stack") from exc
+        except ExpressionLoweringError:
+            self._failed = True
+            raise
+        except (TypeError, ValueError) as exc:
+            self._failed = True
+            raise LoweringConstructionError("cannot construct call IR fragment") from exc
+
+    @staticmethod
+    def _check_call(call: CallExpr, binding: CallBinding,
+                    facts: ExpressionAnnotations, *, value_context: bool) -> None:
+        if (not isinstance(binding, CallBinding) or binding.call is not call
+                or facts.call_binding_of(call) is not binding
+                or value_context and binding.return_type is VoidType.VOID):
+            raise LoweringMetadataError("call binding is missing or inconsistent")
+        if any(facts.type_of(arg) is not kind
+               for arg, kind in zip(call.args, binding.argument_types)):
+            raise LoweringMetadataError("call argument type annotation is missing")
+
+    def _emit_call(self, call: CallExpr, binding: CallBinding,
+                   facts: ExpressionAnnotations, *, discard: bool) -> Temporary | None:
+        converted = {site.index: site for site in binding.conversions}
+        arguments = []
+        for index, argument in enumerate(call.args):
+            value = self._value(argument, facts)
+            if index in converted:
+                site = converted[index]
+                value = emit_int_to_float(self.builder, value, site.source_type,
+                                          site.destination_type, argument.span)
+            arguments.append(value)
+        result = (self.builder.temp(binding.return_type)
+                  if not discard else None)
+        self.builder.emit(Call(self.builder.owner, call.span, FunctionRef(binding.function),
+                               tuple(arguments), result,
+                               discard and binding.return_type is not VoidType.VOID))
+        return result
+
     def _run(
         self, analysis: ExpressionAnalysis, destinations: tuple[LabelRef, LabelRef] | None,
     ) -> Value | None:
@@ -154,10 +214,10 @@ class ExpressionLowerer:
             self._failed = True
             raise LoweringConstructionError("cannot construct scalar IR fragment") from exc
 
-    def _preflight(self, analysis: ExpressionAnalysis) -> None:
+    def _preflight(self, analysis: ExpressionAnalysis, *, start_depth: int = 1) -> int:
         """Check support and occurrence-specific facts before any emission."""
         facts = analysis.annotations
-        stack: list[tuple[Expr, int]] = [(analysis.root, 1)]
+        stack: list[tuple[Expr, int]] = [(analysis.root, start_depth)]
         seen = 0
         while stack:
             node, depth = stack.pop()
@@ -170,8 +230,12 @@ class ExpressionLowerer:
             if not isinstance(kind, ScalarType):
                 raise LoweringMetadataError("expression is missing an intrinsic type annotation")
             if isinstance(node, CallExpr):
-                raise DeferredExpressionError("function call lowering belongs to a later M5 task")
-            if isinstance(node, LiteralExpr):
+                binding = facts.call_binding_of(node)
+                self._check_call(node, binding, facts, value_context=True)
+                if binding.return_type is not kind:
+                    raise LoweringMetadataError("call result type contradicts its binding")
+                stack.extend((arg, depth + 1) for arg in reversed(node.args))
+            elif isinstance(node, LiteralExpr):
                 if _LITERAL_TYPES.get(node.kind) is not kind:
                     raise LoweringMetadataError("literal kind contradicts its semantic type")
                 try:
@@ -227,6 +291,7 @@ class ExpressionLowerer:
                     raise LoweringMetadataError("binary conversion sites are incomplete or misplaced")
                 stack.append((node.right, depth + 1))
                 stack.append((node.left, depth + 1))
+        return seen
 
     def _value(self, node: Expr, facts: ExpressionAnnotations) -> Value:
         owner = self.builder.owner
@@ -250,6 +315,8 @@ class ExpressionLowerer:
             result = self.builder.temp(kind)
             self.builder.emit(LoadElement(owner, node.span, guard, result))
             return result
+        if isinstance(node, CallExpr):
+            return self._emit_call(node, facts.call_binding_of(node), facts, discard=False)
         if isinstance(node, UnaryExpr):
             if (node.operator is TokenType.NOT and isinstance(node.operand, BinaryExpr)
                     and node.operand.operator in _SHORT_CIRCUIT):

@@ -1,4 +1,4 @@
-"""Partial straight-line lowering of validated statement occurrences.
+"""Partial statement and control-flow lowering of validated occurrences.
 
 The caller owns the shared builder and completes its routine. A failed lowerer
 invalidates its construction session; discard the builder after any failure.
@@ -16,8 +16,9 @@ from sparq.expression_lowering import (
     emit_int_to_float,
 )
 from sparq.ir import (
-    ArrayRef, CheckBounds, Constant, InitArray, InitElement, InitScalar,
-    Move, ParameterRef, ReadElement, ReadScalar, RoutineKind, Show,
+    ArrayRef, BranchBool, CheckBounds, Compare, Constant, InitArray, InitElement,
+    InitScalar, Jump, Move, ParameterRef, ReadElement, ReadScalar, Return,
+    RoutineKind, Show,
     StoreElement, Temporary, VariableRef, _DEFAULTS,
 )
 from sparq.ir_builder import IRBuilder
@@ -25,6 +26,7 @@ from sparq.statement_semantic import (
     ExpressionUse, StatementAnalysis, StatementConversionSite, WritableTarget,
 )
 from sparq.symbols import ScalarType, SymbolKind, VariableSymbol
+from sparq.token import TokenType
 
 
 class StatementLoweringError(ValueError):
@@ -51,8 +53,9 @@ class StatementConstructionError(StatementLoweringError):
     """The shared IR builder rejected a statement fragment."""
 
 
-_SUPPORTED = (ScalarDecl, ArrayDecl, AssignStmt, ReadStmt, ShowStmt, Block)
-_DEFERRED = (CallStmt, ReturnStmt, WhenStmt, SelectStmt, WhileStmt, DoWhileStmt, ForStmt)
+_SUPPORTED = (ScalarDecl, ArrayDecl, AssignStmt, ReadStmt, ShowStmt, Block,
+              WhenStmt, SelectStmt, WhileStmt, DoWhileStmt, ForStmt,
+              CallStmt, ReturnStmt)
 
 
 class StatementLowerer:
@@ -161,14 +164,107 @@ class StatementLowerer:
             count += 1
             if depth > self.max_depth or count > self.max_statements:
                 raise StatementResourceError("statement exceeds lowering resource limit")
-            if isinstance(node, _DEFERRED):
-                raise DeferredStatementError(f"{type(node).__name__} belongs to a later M5 task")
             if not isinstance(node, _SUPPORTED):
                 raise StatementMetadataError("unsupported statement occurrence")
             if isinstance(node, Block):
                 if analysis.scope_of(node) is None:
                     raise StatementMetadataError("block scope metadata is missing")
                 pending.extend((child, depth + 1) for child in reversed(node.statements))
+            elif isinstance(node, WhenStmt):
+                if node.else_block is not None:
+                    pending.append((node.else_block, depth + 1))
+                pending.append((node.then_block, depth + 1))
+            elif isinstance(node, SelectStmt):
+                if node.default is not None:
+                    pending.append((node.default, depth + 1))
+                pending.extend((case.body, depth + 1) for case in reversed(node.cases))
+            elif isinstance(node, (WhileStmt, DoWhileStmt)):
+                pending.append((node.body, depth + 1))
+            elif isinstance(node, ForStmt):
+                pending.append((node.body, depth + 1))
+                if node.update is not None:
+                    pending.append((node.update, depth + 1))
+                if node.initializer is not None:
+                    pending.append((node.initializer, depth + 1))
+
+    def _condition(self, analysis: StatementAnalysis, node, on_true, on_false) -> None:
+        condition = analysis.condition_of(node)
+        if condition is None or condition.root is not node.condition:
+            raise StatementMetadataError("condition metadata is missing")
+        self.expressions.lower_condition(condition, on_true, on_false)
+
+    def _control(self, analysis: StatementAnalysis, node: Stmt) -> None:
+        owner = self.builder.owner
+        if isinstance(node, WhenStmt):
+            on_true = self.builder.label()
+            on_false = self.builder.label()
+            join = self.builder.label() if node.else_block is not None else on_false
+            self._condition(analysis, node, on_true, on_false)
+            self.builder.define(on_true, node.then_block.span)
+            self.lower_block(analysis, node.then_block)
+            if node.else_block is not None:
+                self.builder.emit(Jump(owner, node.span, join))
+                self.builder.define(on_false, node.else_block.span)
+                self.lower_block(analysis, node.else_block)
+                self.builder.define(join, node.span)
+            else:
+                self.builder.define(on_false, node.span)
+        elif isinstance(node, SelectStmt):
+            selector = analysis.selector_of(node)
+            if selector is None or selector.root is not node.selector:
+                raise StatementMetadataError("SELECT metadata is missing")
+            value = self.expressions.lower_value(selector)
+            labels = analysis.labels_of(node)
+            if len(labels) != len(node.cases) or any(
+                label.clause is not case or label.type is not selector.type
+                for label, case in zip(labels, node.cases)
+            ):
+                raise StatementMetadataError("CASE metadata is missing")
+            join = self.builder.label()
+            for case, label in zip(node.cases, labels):
+                matched, next_case = self.builder.label(), self.builder.label()
+                result = self.builder.temp(ScalarType.BOOL)
+                self.builder.emit(Compare(owner, case.label.span, TokenType.EQUAL_EQUAL,
+                                          value, Constant(label.type, label.value), result))
+                self.builder.emit(BranchBool(owner, case.label.span, result, matched, next_case))
+                self.builder.define(matched, case.body.span)
+                self.lower_block(analysis, case.body)
+                self.builder.emit(Jump(owner, case.body.span, join))
+                self.builder.define(next_case, case.label.span)
+            if node.default is not None:
+                self.lower_block(analysis, node.default)
+            self.builder.define(join, node.span)
+        elif isinstance(node, WhileStmt):
+            test, body, exit_label = (self.builder.label() for _ in range(3))
+            self.builder.define(test, node.condition.span)
+            self._condition(analysis, node, body, exit_label)
+            self.builder.define(body, node.body.span)
+            self.lower_block(analysis, node.body)
+            self.builder.emit(Jump(owner, node.span, test))
+            self.builder.define(exit_label, node.span)
+        elif isinstance(node, DoWhileStmt):
+            body, exit_label = self.builder.label(), self.builder.label()
+            self.builder.define(body, node.body.span)
+            self.lower_block(analysis, node.body)
+            self._condition(analysis, node, body, exit_label)
+            self.builder.define(exit_label, node.span)
+        elif isinstance(node, ForStmt):
+            if analysis.repeat_scope_of(node) is None:
+                raise StatementMetadataError("REPEAT header scope metadata is missing")
+            if node.initializer is not None:
+                self.lower_statement(analysis, node.initializer)
+            test, body, exit_label = (self.builder.label() for _ in range(3))
+            self.builder.define(test, node.condition.span if node.condition is not None else node.span)
+            if node.condition is None:
+                self.builder.emit(Jump(owner, node.span, body))
+            else:
+                self._condition(analysis, node, body, exit_label)
+            self.builder.define(body, node.body.span)
+            self.lower_block(analysis, node.body)
+            if node.update is not None:
+                self.lower_statement(analysis, node.update)
+            self.builder.emit(Jump(owner, node.span, test))
+            self.builder.define(exit_label, node.span)
 
     @staticmethod
     def _use(analysis: StatementAnalysis, parent: Stmt, role: str,
@@ -300,5 +396,25 @@ class StatementLowerer:
                     raise StatementMetadataError("SHOW expression metadata is missing")
                 value = self.expressions.lower_value(expression)
                 self.builder.emit(Show(owner, node.span, value))
+            elif isinstance(node, CallStmt):
+                call = analysis.call_of(node)
+                if call is None or call.call is not node.call:
+                    raise StatementMetadataError("CALL statement metadata is missing")
+                self.expressions.lower_call(call)
+            elif isinstance(node, ReturnStmt):
+                result = analysis.return_of(node)
+                if (result is None or result.statement is not node
+                        or result.function is not owner.function):
+                    raise StatementMetadataError("RETURN metadata is missing or belongs to another function")
+                value = None
+                if result.value is not None:
+                    value = self.expressions.lower_value(result.value)
+                    if result.conversion is not None:
+                        site = result.conversion
+                        value = emit_int_to_float(self.builder, value, site.source_type,
+                                                  site.destination_type, result.value.root.span)
+                self.builder.emit(Return(owner, node.span, value))
+            elif isinstance(node, (WhenStmt, SelectStmt, WhileStmt, DoWhileStmt, ForStmt)):
+                self._control(analysis, node)
             else:
                 raise StatementMetadataError("statement was not preflighted")

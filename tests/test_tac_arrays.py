@@ -4,7 +4,7 @@ import pytest
 
 from sparq.expression_lowering import DeferredExpressionError, ExpressionLowerer
 from sparq.ir import (
-    ArrayRef, Binary, BranchBool, CheckBounds, Compare, Convert, InitArray,
+    ArrayRef, Binary, BranchBool, Call, CheckBounds, Compare, Convert, InitArray,
     InitElement,
     Label, Load, LoadElement, RoutineId, Show, StoreElement,
 )
@@ -149,7 +149,7 @@ def test_indexed_assignment_nested_index_and_rhs_evaluate_once():
     "INT a[1] = {f()};",
     "INT a[1]; INT b[1] = {a[f()]};",
 ])
-def test_calls_nested_in_array_contexts_remain_explicitly_deferred(body):
+def test_calls_nested_in_array_contexts_lower_once(body):
     program = Parser(Lexer(
         f"FUNC f() -> INT {{ RETURN 0; }} START {{ {body} }}"
     ).tokenize()).parse()
@@ -158,6 +158,6 @@ def test_calls_nested_in_array_contexts_remain_explicitly_deferred(body):
     inventory = tuple(ArrayRef(owner, symbol) for _, symbol in semantic.start.declarations)
     builder = IRBuilder(owner, semantic.start_scope.id, local_symbols=inventory)
     lowerer = StatementLowerer(builder)
-    with pytest.raises(DeferredExpressionError):
-        lowerer.lower_block(semantic.start)
-    assert lowerer.failed
+    lowerer.lower_block(semantic.start)
+    assert sum(isinstance(item, Call) for item in builder.snapshot()) == 1
+    assert not lowerer.failed

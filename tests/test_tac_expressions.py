@@ -10,7 +10,7 @@ from sparq.expression_lowering import (
     LoweringInputError, LoweringMetadataError, LoweringResourceError,
 )
 from sparq.ir import (
-    ArrayRef, Binary, BoolMergeTemp, BranchBool, CheckBounds, Compare, Constant,
+    ArrayRef, Binary, BoolMergeTemp, BranchBool, Call, CheckBounds, Compare, Constant,
     Convert, Jump, Label, LabelRef, Load, LoadElement, Move, ParameterRef,
     RoutineId, Temporary, Unary, VariableRef,
 )
@@ -461,32 +461,34 @@ def test_array_access_now_emits_a_guarded_load():
     assert not lowerer.failed
 
 
-def test_deferred_root_call_is_not_a_semantic_error():
+def test_root_call_uses_resolved_function_and_typed_result():
     source = "FUNC f() -> INT { RETURN 1; } START { SHOW(f()); }"
     program = Parser(Lexer(source).tokenize()).parse()
     semantic = SemanticAnalyzer(program).analyze()
     analysis = semantic.start.show_of(program.main.statements[0])
     builder = IRBuilder(RoutineId.start(), semantic.start_scope.id)
-    with pytest.raises(DeferredExpressionError, match="function call"):
-        ExpressionLowerer(builder).lower_value(analysis)
-    assert builder.snapshot() == ()
+    result = ExpressionLowerer(builder).lower_value(analysis)
+    call, = builder.snapshot()
+    assert isinstance(call, Call) and call.function.symbol is semantic.functions[0].function
+    assert call.arguments == () and call.result is result
 
 
-@pytest.mark.parametrize("source,category", [
-    ("FUNC f() -> INT { RETURN 1; } START { SHOW(1 + f()); }", "function call"),
-    ("FUNC p() -> BOOL { RETURN TRUE; } START { SHOW(FALSE AND p()); }", "function call"),
-    ("FUNC f() -> INT { RETURN 0; } START { INT arr[2]; SHOW(NOT (arr[f()] == 0)); }", "function call"),
+@pytest.mark.parametrize("source", [
+    "FUNC f() -> INT { RETURN 1; } START { SHOW(1 + f()); }",
+    "FUNC p() -> BOOL { RETURN TRUE; } START { SHOW(FALSE AND p()); }",
+    "FUNC f() -> INT { RETURN 0; } START { INT arr[2]; SHOW(NOT (arr[f()] == 0)); }",
 ])
-def test_nested_deferred_categories_never_publish_partial_fragments(source, category):
+def test_nested_calls_lower_with_existing_expression_structure(source):
     program = Parser(Lexer(source).tokenize()).parse()
     semantic = SemanticAnalyzer(program).analyze()
     analysis = semantic.start.show_of(program.main.statements[-1])
     owner = RoutineId.start()
-    builder = IRBuilder(owner, semantic.start_scope.id)
+    inventory = tuple(ArrayRef(owner, symbol) for _, symbol in semantic.start.declarations)
+    builder = IRBuilder(owner, semantic.start_scope.id, local_symbols=inventory)
     lowerer = ExpressionLowerer(builder)
-    with pytest.raises(DeferredExpressionError, match=category):
-        lowerer.lower_value(analysis)
-    assert builder.snapshot() == () and lowerer.failed
+    lowerer.lower_value(analysis)
+    assert sum(isinstance(item, Call) for item in builder.snapshot()) == 1
+    assert not lowerer.failed
 
 
 def test_invalid_direct_arguments_and_non_bool_condition_are_controlled():

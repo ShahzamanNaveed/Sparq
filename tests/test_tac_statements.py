@@ -6,9 +6,9 @@ import pytest
 
 from sparq.expression_lowering import DeferredExpressionError
 from sparq.ir import (
-    ArrayRef, Binary, BranchBool, CheckBounds, Constant, Convert, HaltStart,
+    ArrayRef, Binary, BranchBool, Call, CheckBounds, Constant, Convert, HaltStart,
     InitArray, InitElement, InitScalar, Label, Load, LoadElement, Move,
-    ParameterRef, ReadElement, ReadScalar, RoutineId, Show, StoreElement,
+    ParameterRef, ReadElement, ReadScalar, Return, RoutineId, Show, StoreElement,
     VariableRef,
 )
 from sparq.ir_builder import IRBuilder
@@ -282,44 +282,45 @@ def test_short_circuit_boolean_initializer_and_assignment_keep_merge_before_writ
 
 
 @pytest.mark.parametrize("body,kind", [
-    ("WHEN (TRUE) { SHOW(1); }", "WhenStmt"),
-    ("WHILE (TRUE) { SHOW(1); }", "WhileStmt"),
     ("FUNC_CALL_PLACEHOLDER", "CallStmt"),
 ])
-def test_deferred_statements_fail_before_emission(body, kind):
+def test_standalone_call_statement_lowers(body, kind):
     functions = "FUNC f() -> VOID { RETURN; }" if kind == "CallStmt" else ""
     body = "f();" if kind == "CallStmt" else body
     _, semantic, builder, lowerer = _start(body, functions)
-    with pytest.raises(DeferredStatementError, match=kind):
-        lowerer.lower_block(semantic.start)
-    assert builder.snapshot() == () and lowerer.failed
+    lowerer.lower_block(semantic.start)
+    call, = builder.snapshot()
+    assert isinstance(call, Call) and call.result is None and not call.discard_result
 
 
-def test_nested_deferred_statement_does_not_publish_complete_block():
-    _, semantic, builder, lowerer = _start("INT x; { SHOW(x); WHEN (TRUE) {} }")
-    with pytest.raises(DeferredStatementError):
-        lowerer.lower_block(semantic.start)
-    assert builder.snapshot() == () and lowerer.failed
+def test_nested_call_statement_keeps_prior_source_order():
+    _, semantic, builder, lowerer = _start(
+        "INT x; { SHOW(x); WHEN (TRUE) { f(); } }",
+        "FUNC f() -> VOID { RETURN; }",
+    )
+    lowerer.lower_block(semantic.start)
+    items = builder.snapshot()
+    assert [type(item) for item in items if isinstance(item, (Show, Call))] == [Show, Call]
+    assert not lowerer.failed
 
 
-def test_return_statement_is_explicitly_deferred():
+def test_return_statement_uses_retained_function_value():
     _, function, builder, lowerer = _function(
         "FUNC f() -> INT { RETURN 1; } START {}"
     )
-    with pytest.raises(DeferredStatementError, match="ReturnStmt"):
-        lowerer.lower_block(function.body)
-    assert lowerer.failed and builder.snapshot() == ()
+    lowerer.lower_block(function.body)
+    instruction, = builder.snapshot()
+    assert isinstance(instruction, Return) and instruction.value == Constant(T.INT, 1, "1")
 
 
-def test_deferred_call_inside_initializer_invalidates_shared_session():
+def test_call_inside_initializer_uses_shared_session():
     _, semantic, builder, lowerer = _start(
         "INT x = f();", "FUNC f() -> INT { RETURN 1; }"
     )
-    with pytest.raises(DeferredExpressionError, match="function call"):
-        lowerer.lower_block(semantic.start)
-    assert lowerer.failed and lowerer.expressions.failed
-    with pytest.raises(StatementInputError, match="discard"):
-        lowerer.lower_block(semantic.start)
+    lowerer.lower_block(semantic.start)
+    call, init = builder.snapshot()
+    assert isinstance(call, Call) and isinstance(init, InitScalar)
+    assert init.value is call.result and not lowerer.failed
 
 
 def test_invalid_input_completed_builder_and_limits_are_controlled():
@@ -466,11 +467,12 @@ def test_selected_foreign_or_cloned_control_flow_descendant_is_rejected(clone):
     "DO { SHOW(1); } WHILE (FALSE);",
     "REPEAT (INT i = 0; i < 1; i = i + 1) { SHOW(i); }",
 ])
-def test_direct_control_flow_selection_remains_deferred(body):
+def test_direct_control_flow_selection_lowers_successfully(body):
     program, semantic, builder, lowerer = _start(body)
-    with pytest.raises(DeferredStatementError):
-        lowerer.lower_statement(semantic.start, program.main.statements[0])
-    assert builder.snapshot() == () and lowerer.failed
+    lowerer.lower_statement(semantic.start, program.main.statements[0])
+    assert builder.snapshot() and not lowerer.failed
+    assert all(item.target.owner is builder.owner for item in builder.snapshot()
+               if isinstance(item, Label))
 
 
 def test_foreign_symbol_inventory_fails_and_earlier_snapshot_is_immutable():
