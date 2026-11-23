@@ -1,8 +1,8 @@
 # Sparq
 
-Sparq is a statically typed, procedural programming language designed for the CS4031 Compiler Construction semester project. This repository will contain a Python 3.11+ compiler for `.spq` source files. The approved language specification is [docs/SPARQ_LANGUAGE_SPEC.md](docs/SPARQ_LANGUAGE_SPEC.md).
+Sparq is a statically typed, procedural programming language designed for the CS4031 Compiler Construction semester project. This repository contains a Python 3.11+ compiler for `.spq` source files. The approved language specification is [docs/SPARQ_LANGUAGE_SPEC.md](docs/SPARQ_LANGUAGE_SPEC.md).
 
-The compiler implements lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, machine-independent and machine-dependent optimization, target-code generation, and execution on a custom register-based virtual machine. M1–M7 are completed and accepted; M8 has not started. The final independent M6/M7 audit passed with no confirmed defects. Phase 6 and 7 handout requirements are covered within the conservative scope in the [optimization guide](docs/CODE_OPTIMIZATION.md) and [target architecture guide](docs/TARGET_ARCHITECTURE.md). The latest verified regression is **1662 passed, 0 failed, 0 skipped**.
+The compiler implements lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, machine-independent and machine-dependent optimization, target-code generation, and execution on a custom register-based virtual machine. M1–M7 are completed and accepted; M8 audit and remediation are in progress. The [Phase 1–7 compliance audit](docs/FINAL_COMPLIANCE_AUDIT.md) records direct implementation and demonstration evidence, remaining submission work, and conservative optimization limits. The latest verified regression is **1679 passed, 0 failed, 0 skipped**.
 
 ## Structure
 
