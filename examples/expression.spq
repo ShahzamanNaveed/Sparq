@@ -1,0 +1,4 @@
+START {
+    INT x = 2 + 3 * 4;
+    SHOW(x);
+}

@@ -1,0 +1,21 @@
+FUNC grade(INT total) -> CHAR {
+    WHEN (total >= 240) { RETURN 'A'; }
+    WHEN (total >= 150) { RETURN 'P'; }
+    RETURN 'F';
+}
+
+START {
+    INT marks[3];
+    INT total = 0;
+    REPEAT (INT i = 0; i < 3; i = i + 1) {
+        READ(marks[i]);
+        total = total + marks[i];
+    }
+    SHOW(total);
+    CHAR result = grade(total);
+    SELECT (result) {
+        CASE 'A': { SHOW("Distinction"); }
+        CASE 'P': { SHOW("Pass"); }
+        DEFAULT: { SHOW("Fail"); }
+    }
+}

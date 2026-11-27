@@ -1,58 +1,51 @@
 # Sparq
 
-Sparq is a statically typed, procedural programming language designed for the CS4031 Compiler Construction semester project. This repository contains a Python 3.11+ compiler for `.spq` source files. The approved language specification is [docs/SPARQ_LANGUAGE_SPEC.md](docs/SPARQ_LANGUAGE_SPEC.md).
+Sparq is a statically typed language built for the CS4031 Compiler Construction project. Its Python compiler translates a Sparq program into three-address code (TAC), generates instructions for a three-register machine, and runs them on a virtual machine.
 
-The compiler implements lexical analysis, recursive-descent syntax analysis and AST construction, semantic analysis, Three-Address Code generation, machine-independent and machine-dependent optimization, target-code generation, and execution on a custom register-based virtual machine. M1–M7 are completed and accepted; M8 audit and remediation are in progress. The [Phase 1–7 compliance audit](docs/FINAL_COMPLIANCE_AUDIT.md) records direct implementation and demonstration evidence, remaining submission work, and conservative optimization limits. The latest verified regression is **1679 passed, 0 failed, 0 skipped**.
+## Try the marks program
 
-## Structure
+Use Python 3.11 or newer. From the repository root, run the following command. On Windows, you can substitute `py` for `python`.
 
-- `docs/`: frozen M1 specification, milestone tracker, and compiler-theory and semantic guides.
-- `sparq/`: lexer, recursive-descent parser, immutable AST, semantic analyzers, complete typed TAC generation and verification, conservative TAC and target optimization, target-code generation, and the target VM.
-- `tools/`: separate educational parser-theory and semantic demonstrations.
-- `tests/`: pytest coverage for lexical, syntax, semantic, typed TAC generation, verification, TAC and target optimization, target-code generation, and VM execution.
-- `examples/`: reference Sparq source programs that can be compiled to TAC and target listings or executed on the VM.
+```sh
+python -m sparq.vm examples/marks.spq
+```
 
-## Python environment
+Enter `80 75 85` and press Enter. If the terminal is still waiting for input, signal end of input with Ctrl+Z then Enter on Windows, or Ctrl+D on Linux/macOS. The program prints
 
-Use Python 3.11 or newer. A virtual environment is recommended. The project has no production dependencies. `pytest` is configured as an optional test dependency. After installing the test extra with `python -m pip install -e ".[test]"`, run tests with `python -m pytest -q`. In a restricted environment, use `python -m pytest -q --basetemp=.pytest_tmp` to keep temporary test files in the project.
+```text
+240
+Distinction
+```
 
-## Lexer debugging
+[Read the program](examples/marks.spq). It reads three integer marks (assumed to be out of 100) into an array, totals them with a `REPEAT` loop, and calls `grade`. Totals of 240 or higher earn a distinction, 150–239 earn a pass, and lower totals fail. A `SELECT` statement prints the corresponding message.
 
-Run `python -m sparq.lexer examples/hello.spq` to print token type, original lexeme, decoded literal, and 1-based source span. End positions are exclusive. The command exits nonzero and prints a source diagnostic for a lexical error. It does not compile or execute Sparq programs.
+## Follow the compiler
 
-The lexer reads the source into an indexed character buffer. `peek()` and `peek_next()` inspect one or two characters without consuming them; `advance()` consumes a character and updates the line and column. CRLF is consumed as one line break. Whitespace and comments are discarded. Recognition is fail-fast: the first lexical error raises `LexicalError` with a category, position, and offending text. Python callers can use `Lexer(source).tokenize()` or `Lexer.from_file(path).tokenize()`. Each call creates its own scanner state.
+These commands use a four-line program with no input. The [worked walkthrough](docs/VIVA_WALKTHROUGH.md) connects each listing to the Python functions that produce it.
 
-Identifiers are scanned completely before exact, case-sensitive keyword lookup. A contiguous number-like sequence is checked as a whole, distinguishing integers from decimal floats and rejecting malformed neighbors. Two-character operators are checked before one-character operators. Quoted literals are scanned before comment logic can affect their contents.
+```sh
+python -m sparq.lexer examples/expression.spq
+python -m sparq.program_semantic examples/expression.spq
+python -m sparq.tac examples/expression.spq --compare
+python -m sparq.target_codegen examples/expression.spq --optimize --target-optimize
+python -m sparq.vm examples/expression.spq --optimize --target-optimize
+```
 
-## Parser API
+## Project references
 
-Use `Parser(Lexer(source).tokenize()).parse()` to construct a complete `Program` AST. It accepts zero or more function declarations followed by one `START` block and requires the final EOF token. `Parser(tokens).parse_expression_only()` remains available for parsing a single expression. Invalid syntax raises `ParseError` with a category and source position. Parsing does not resolve names, check types, or execute code.
+- [Language syntax and grammar](docs/SPARQ_LANGUAGE_SPEC.md)
+- [Parsing theory](docs/PARSER_THEORY.md), [full Sparq LL(1) analysis](docs/LL1_ANALYSIS.md), and [LR table demonstrations](docs/LR_DEMONSTRATIONS.md)
+- [Semantic analysis](docs/SEMANTIC_ANALYSIS.md) and [attribute evaluation](docs/SDD_SDT_DEMONSTRATIONS.md)
+- [TAC generation](docs/INTERMEDIATE_CODE_GENERATION.md) and [worked TAC examples](docs/IR_DEMONSTRATIONS.md)
+- [Optimization passes](docs/CODE_OPTIMIZATION.md) and [target machine](docs/TARGET_ARCHITECTURE.md)
+- [Course requirement mapping](docs/FINAL_COMPLIANCE_AUDIT.md) and [milestone history](docs/MILESTONE_STATUS.md)
 
-`examples/hello.spq` can be tokenized, parsed, semantically checked, compiled to verified TAC and target instructions, and executed on the VM.
+## Run the tests
 
-## Semantic analysis
-
-Run `.venv\Scripts\python -m sparq.program_semantic examples/hello.spq` to lex, parse, and semantically validate a source file without executing it. Python callers can use `SemanticAnalyzer(program).analyze()` from `sparq.program_semantic`; the completed result retains the original AST, ordered function results, START analysis, and scope snapshots. See [docs/SEMANTIC_ANALYSIS.md](docs/SEMANTIC_ANALYSIS.md) for its annotation and TAC input contract.
-
-## Typed TAC
-
-Run `.venv\Scripts\python -m sparq.tac examples/hello.spq` to compile source through semantic analysis to a complete verified, readable Three-Address Code listing. Python callers can use `generate_tac(program, analysis)` or `TACGenerator(program, analysis).generate()` and `verify_program(ir_program)`; `format_tac(ir_program)` renders canonical IR. The generator requires the exact analyzed AST and does not execute the program. See [docs/INTERMEDIATE_CODE_GENERATION.md](docs/INTERMEDIATE_CODE_GENERATION.md) for ownership, path verification, and limitations.
-
-## Code optimization
-
-Run `.venv\Scripts\python -m sparq.tac examples/optimization.spq --compare` to display original and optimized verified TAC, or use `--optimize` for only the optimized listing. The default command remains unoptimized. Python callers can use `optimize_program(ir_program, analysis)` and `analyze_routine(routine)` from `sparq.optimization`. The optimizer does not execute source. See [docs/CODE_OPTIMIZATION.md](docs/CODE_OPTIMIZATION.md) for supported passes, safety limits, and the reproducible before/after example.
-
-## Target-code generation
-
-Run `.venv\Scripts\python -m sparq.target_codegen examples/hello.spq` to display the immutable three-register target listing. Add `--optimize` to translate verified optimized TAC. Python callers can use `generate_target(ir_program)` and `format_target(target_program)`. The target architecture, instruction semantics, frame layout, cost model, and array allocation ordering are in [docs/TARGET_ARCHITECTURE.md](docs/TARGET_ARCHITECTURE.md). This command generates code; it does not execute a program.
-
-For target-specific optimization, add `--target-optimize`; combine it with `--optimize` for optimized TAC followed by optimized target. `--compare-target` displays the ordinary target, target-optimized code from original TAC, and target-optimized code from optimized TAC with instruction counts and estimated costs. Python callers can use `optimize_target(target_program)` or `optimize_target_with_report(target_program)` from `sparq.target_optimization`. The target pass validates input and output and retains the original target program. Its supported DAG and register rules are documented in the [target architecture guide](docs/TARGET_ARCHITECTURE.md).
-
-## VM execution
-
-Run `.venv\Scripts\python -m sparq.vm examples/hello.spq` to compile and execute a program. Add `--optimize` to run target code generated from verified optimized TAC. The command reads `READ` fields from standard input, writes `SHOW` output to standard output, and exits with code 2 for compilation errors or 3 for runtime errors. Python callers can use `validate_target(target_program)`, `VirtualMachine(target_program, input_stream="...").run()`, or `run_target(target_program, input_stream="...")`. Validation checks reachable register types and availability across branches and loops before any target instruction executes. `ExecutionResult` includes output, consumed input field count, and executed instruction count. See the [target architecture guide](docs/TARGET_ARCHITECTURE.md) for frames, guards, runtime errors, and resource limits.
-
-The VM also accepts `--target-optimize`, with optional `--optimize`, to execute the corresponding optimized target path. The default execution path remains unchanged.
+```sh
+python -m pip install -e ".[test]"
+python -m pytest -q
+```
 
 ## Academic integrity
 
